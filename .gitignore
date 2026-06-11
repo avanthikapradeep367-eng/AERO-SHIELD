@@ -1,0 +1,38 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+
+# ── Virtual Environment ───────────────────────────────────────────────────────
+venv/
+env/
+ENV/
+.venv/
+
+# ── Environment Variables (NEVER commit secrets) ──────────────────────────────
+.env
+*.env
+.env.local
+.env.production
+
+# ── IDE / Editor ──────────────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# ── OS Files ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Distribution / Build ──────────────────────────────────────────────────────
+dist/
+build/
+*.egg-info/

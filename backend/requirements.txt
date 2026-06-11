@@ -1,0 +1,19 @@
+# ── AERO-SHIELD Backend — Python Dependencies ─────────────────────────────────
+
+# Web Framework
+fastapi==0.111.0
+
+# ASGI Server
+uvicorn[standard]==0.29.0
+
+# Database ORM
+SQLAlchemy==2.0.30
+
+# PostgreSQL Adapter (binary — no local build required)
+psycopg2-binary==2.9.9
+
+# Environment variable loading from .env
+python-dotenv==1.0.1
+
+# Data validation (comes with FastAPI, pinned for reproducibility)
+pydantic==2.7.1
