@@ -26,10 +26,10 @@ async def lifespan(app: FastAPI):
     """
     # Create tables based on all registered ORM models
     Base.metadata.create_all(bind=engine)
-    print("✅  Database tables verified / created.")
+    print("[OK] Database tables verified / created.")
     yield
     # Shutdown logic (close connections, flush caches, etc.)
-    print("🛑  AERO-SHIELD server shutting down.")
+    print("[INFO] AERO-SHIELD server shutting down.")
 
 
 # ── FastAPI App Instance ──────────────────────────────────────────────────────
