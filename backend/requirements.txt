@@ -17,3 +17,11 @@ python-dotenv==1.0.1
 
 # Data validation (comes with FastAPI, pinned for reproducibility)
 pydantic==2.7.1
+
+# ── Blockchain Integration Layer ────────────────────────────────────────────────
+
+# Ethereum / Web3 client library
+web3>=6.0.0
+
+# Ethereum account management (bundled with web3, listed for clarity)
+eth-account>=0.10.0
