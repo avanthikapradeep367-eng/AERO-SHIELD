@@ -1,0 +1,16 @@
+{
+  "contractName": "EvidenceVault",
+  "contractAddress": "0x53F523E8b101d25db89Ef4D0599ECf6b021f4f87",
+  "txHash": "0xc8d98a8474a537d9b5dec2e3b5361cd630e7b72c4d651856f36f35c2297682a3",
+  "gasUsed": "2735061",
+  "blockNumber": 3,
+  "deployedAt": "2026-06-29T09:18:08.367Z",
+  "deployer": "0x009DD4C18D28Fa147306adc2bf698579607ea20b",
+  "owner": "0x009DD4C18D28Fa147306adc2bf698579607ea20b",
+  "version": "AERO-SHIELD-X:EvidenceVault:v2.0.0-phase2",
+  "network": {
+    "name": "ganache",
+    "chainId": "1337",
+    "rpcUrl": "http://127.0.0.1:7545"
+  }
+}

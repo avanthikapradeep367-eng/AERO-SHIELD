@@ -1,0 +1,43 @@
+{
+  "name": "aero-shield-x-blockchain",
+  "version": "1.0.0",
+  "description": "AERO-SHIELD X — Blockchain & Digital Forensics module. Ethereum smart contracts for Device Registry, Authentication Ledger, Evidence Vault, and Threat Intelligence.",
+  "author": "AERO-SHIELD X — Member 2 (Blockchain & Digital Forensics)",
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "scripts": {
+    "compile":       "hardhat compile",
+    "test":          "hardhat test",
+    "coverage":      "hardhat coverage",
+    "deploy:ganache": "hardhat run scripts/deploy.js --network ganache",
+    "deploy:local":  "hardhat run scripts/deploy.js --network localhost",
+    "node":          "hardhat node",
+    "clean":         "hardhat clean",
+    "gas-report":    "REPORT_GAS=true hardhat test",
+    "lint":          "solhint 'contracts/**/*.sol'",
+    "size":          "hardhat size-contracts"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
+    "@nomicfoundation/hardhat-ethers": "^3.0.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "@typechain/ethers-v6": "^0.5.0",
+    "@typechain/hardhat": "^9.0.0",
+    "chai": "^4.3.10",
+    "ethers": "^6.13.0",
+    "hardhat": "^2.22.0",
+    "hardhat-gas-reporter": "^1.0.10",
+    "solidity-coverage": "^0.8.12",
+    "typechain": "^8.3.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0",
+    "dotenv": "^16.4.0"
+  }
+}
