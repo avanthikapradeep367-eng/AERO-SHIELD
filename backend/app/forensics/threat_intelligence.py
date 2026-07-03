@@ -29,7 +29,7 @@ import threading
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Any
 
 from app.blockchain.services.threat_service import ThreatService
 from app.blockchain.exceptions import BlockchainBaseError

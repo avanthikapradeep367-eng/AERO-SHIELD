@@ -29,7 +29,7 @@ from typing import Any
 from app.blockchain.services.evidence_service import EvidenceService
 from app.blockchain.exceptions import IncidentNotFoundError, BlockchainBaseError
 from app.core.logger import get_logger
-from .verifier import verify_evidence, VERIFIED, TAMPERED, MISSING, ERROR
+from .verifier import verify_evidence, MISSING
 from . import chain_of_custody as custody
 
 logger = get_logger("forensics.evidence_utils")

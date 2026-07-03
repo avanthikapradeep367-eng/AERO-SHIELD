@@ -16,7 +16,6 @@ here needs to be updated — service consumers stay unchanged.
 """
 
 from pydantic import BaseModel, Field
-from typing import Any
 
 
 # ── Blockchain Result Schemas ─────────────────────────────────────────────────

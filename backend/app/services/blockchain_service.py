@@ -13,7 +13,6 @@ the authentication_service, threat_service, and device_service that
 live in app/blockchain/services/.
 """
 
-import logging
 import uuid
 from datetime import datetime, timezone
 

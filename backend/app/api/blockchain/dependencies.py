@@ -19,9 +19,6 @@ Design contract
 
 from __future__ import annotations
 
-import time
-import logging
-from datetime import datetime, timezone
 from typing import Any
 
 from fastapi.responses import JSONResponse
@@ -38,7 +35,6 @@ from app.blockchain.exceptions import (
     BlockchainConnectionError,
     GasEstimationError,
     TransactionError,
-    ContractError,
     DeviceNotFoundError,
     DuplicateDeviceError,
     AuthRecordNotFoundError,

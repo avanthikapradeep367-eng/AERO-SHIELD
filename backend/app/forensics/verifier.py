@@ -31,7 +31,6 @@ from app.blockchain.services.evidence_service import EvidenceService
 from app.blockchain.services.authentication_service import AuthenticationService
 from app.blockchain.exceptions import (
     IncidentNotFoundError,
-    EvidenceTamperingError,
     AuthRecordNotFoundError,
     BlockchainBaseError,
 )

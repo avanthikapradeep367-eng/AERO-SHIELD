@@ -19,12 +19,10 @@ from __future__ import annotations
 
 import threading
 import time
-from datetime import datetime, timezone
 from typing import Any
 
 from app.blockchain.services.evidence_service import EvidenceService
 from app.blockchain.services.authentication_service import AuthenticationService
-from app.blockchain.services.device_service import DeviceService
 from app.forensics import chain_of_custody, threat_intelligence
 from app.core.logger import get_logger
 

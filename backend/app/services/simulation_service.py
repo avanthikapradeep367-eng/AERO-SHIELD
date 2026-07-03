@@ -15,7 +15,6 @@ Pipeline:
     4. Return a structured AttackResponse
 """
 
-import logging
 from datetime import datetime, timezone
 
 from app.interfaces.ai_interface import IAIService

@@ -11,19 +11,16 @@ All functions return a ForensicReport dict matching Part 6 of the spec.
 
 from __future__ import annotations
 
-import json
 import time
 from datetime import datetime, timezone
 from typing import Any
 
 from app.blockchain.services.evidence_service import EvidenceService
-from app.blockchain.exceptions import IncidentNotFoundError, BlockchainBaseError
 from app.core.logger import get_logger
-from .hashing import hash_text, hash_json, hash_file, hash_bytes, compare_hash
+from .hashing import hash_json
 from .verifier import (
     verify_evidence,
     verify_file as _verify_file,
-    VERIFIED, TAMPERED, MISSING, CORRUPTED, ERROR,
 )
 
 logger = get_logger("forensics.integrity_checker")

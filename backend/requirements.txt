@@ -25,3 +25,8 @@ web3>=6.0.0
 
 # Ethereum account management (bundled with web3, listed for clarity)
 eth-account>=0.10.0
+
+# ── Dashboard / Health Monitoring ────────────────────────────────────────────────
+
+# System resource metrics (CPU/memory/disk) for app/dashboard/health_monitor.py
+psutil>=5.9.0

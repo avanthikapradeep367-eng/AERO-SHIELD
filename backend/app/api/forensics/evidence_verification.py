@@ -19,9 +19,8 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
 from app.blockchain.services.evidence_service import EvidenceService
-from app.blockchain.exceptions import BlockchainBaseError
 from app.core.logger import get_logger
-from app.forensics import hashing, verifier, chain_of_custody, evidence_utils, integrity_checker
+from app.forensics import hashing, verifier, chain_of_custody, evidence_utils
 from app.schemas.forensics import (
     HashRequest,
     VerifyEvidenceRequest,

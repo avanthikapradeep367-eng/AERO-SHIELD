@@ -25,7 +25,6 @@ from app.ai.preprocessing import (
     PipelineNotFittedError,
     PreprocessingError,
     PreprocessingPipeline,
-    ROLLING_KEY_FEATURE_NAMES,
     RollingKeyFeatureEngineer,
     build_row,
     build_sequences,

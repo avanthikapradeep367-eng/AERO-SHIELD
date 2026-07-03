@@ -18,9 +18,7 @@ matches their literal path segments before attempting the parameterised route.
 
 from __future__ import annotations
 
-import logging
 import time
-from typing import Literal
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse

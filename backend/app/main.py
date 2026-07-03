@@ -22,6 +22,8 @@ from app.exceptions import (
 )
 from app.routes import auth, status, simulation
 from app.api.blockchain.router import router as blockchain_router
+from app.api.blockchain.dependencies import blockchain_error_json
+from app.blockchain.exceptions import BlockchainBaseError
 from app.api.forensics.router import forensics_router, threat_api_router
 from app.api.dashboard.router import (
     dashboard_api_router,
@@ -29,7 +31,6 @@ from app.api.dashboard.router import (
     timeline_api_router,
     system_api_router,
 )
-from app.blockchain.exceptions import BlockchainBaseError, TransactionError
 
 
 # ── Lifespan (startup / shutdown) ─────────────────────────────────────────────
@@ -157,6 +158,18 @@ async def ai_error_handler(request: Request, exc: AIServiceError) -> JSONRespons
         exc.detail,
     )
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+
+@app.exception_handler(BlockchainBaseError)
+async def blockchain_base_error_handler(request: Request, exc: BlockchainBaseError) -> JSONResponse:
+    """
+    Safety net for BlockchainBaseError (Member 2's real app.blockchain.* layer)
+    raised during dependency resolution — e.g. a service constructor failing
+    before a route's own try/except around blockchain_error_json() can run.
+    Reuses the same JSON shaping (and logging) every blockchain route already
+    uses for body-level failures, so behavior stays consistent either way.
+    """
+    return blockchain_error_json(exc)
 
 
 @app.exception_handler(Exception)

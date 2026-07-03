@@ -24,7 +24,7 @@ from app.blockchain.blockchain_service import BlockchainService
 from app.blockchain.exceptions import BlockchainBaseError
 from app.blockchain.utils import now_iso
 from app.core.logger import get_logger
-from .dependencies import get_blockchain_service, blockchain_error_json
+from .dependencies import get_blockchain_service
 
 logger = get_logger("api.blockchain.health")
 
