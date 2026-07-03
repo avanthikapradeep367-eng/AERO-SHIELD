@@ -21,6 +21,15 @@ from app.exceptions import (
     AIServiceError,
 )
 from app.routes import auth, status, simulation
+from app.api.blockchain.router import router as blockchain_router
+from app.api.forensics.router import forensics_router, threat_api_router
+from app.api.dashboard.router import (
+    dashboard_api_router,
+    analytics_api_router,
+    timeline_api_router,
+    system_api_router,
+)
+from app.blockchain.exceptions import BlockchainBaseError, TransactionError
 
 
 # ── Lifespan (startup / shutdown) ─────────────────────────────────────────────
@@ -88,6 +97,26 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(status.router)
 app.include_router(simulation.router)
+
+# ── Blockchain REST API (Member 2) ────────────────────────────────────────────
+# Registers all /blockchain/* routes: device, authentication, evidence, threat, health
+app.include_router(blockchain_router)
+
+# ── Digital Forensics Layer (Member 2) ───────────────────────────────────────
+# /forensics/* — hashing, verification, reports, chain-of-custody
+# /threat/*    — threat intelligence publish/update/list/remove
+app.include_router(forensics_router)
+app.include_router(threat_api_router)
+
+# ── Dashboard & Analytics Layer (Member 2 — Phase 6) ─────────────────────────
+# /dashboard/* — overview, transactions, incidents, devices, kpis
+# /analytics/* — chart data, statistics, heatmap
+# /timeline/*  — unified event timeline, custody, threats
+# /system/*    — health probes (full, summary, live, ready)
+app.include_router(dashboard_api_router)
+app.include_router(analytics_api_router)
+app.include_router(timeline_api_router)
+app.include_router(system_api_router)
 
 
 # ── Exception Handlers ────────────────────────────────────────────────────────

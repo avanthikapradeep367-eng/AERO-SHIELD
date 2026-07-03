@@ -1,0 +1,82 @@
+version: "3.9"
+
+# AERO-SHIELD X — Production Docker Compose
+# Services: fastapi | postgres | ganache
+#
+# Usage:
+#   docker compose -f deployment/docker-compose.yml up --build
+
+services:
+
+  # ── AERO-SHIELD FastAPI Backend ─────────────────────────────────────────────
+  aeroshield-api:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    container_name: aeroshield-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://aeroshield:aeroshield@postgres:5432/aeroshield
+      - GANACHE_RPC_URL=http://ganache:8545
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ganache:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/system/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - aeroshield-net
+
+  # ── PostgreSQL Database ──────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: aeroshield-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       aeroshield
+      POSTGRES_USER:     aeroshield
+      POSTGRES_PASSWORD: aeroshield
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aeroshield -d aeroshield"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aeroshield-net
+
+  # ── Ganache (Local EVM) ───────────────────────────────────────────────────────
+  # Replace with a real Ethereum node (Geth/Besu) for production.
+  ganache:
+    image: trufflesuite/ganache:latest
+    container_name: aeroshield-ganache
+    restart: unless-stopped
+    command: >
+      --host 0.0.0.0
+      --port 8545
+      --chain.chainId 1337
+      --wallet.deterministic true
+      --wallet.totalAccounts 10
+      --miner.blockTime 0
+      --logging.verbose false
+    ports:
+      - "8545:8545"
+    networks:
+      - aeroshield-net
+
+volumes:
+  postgres-data:
+
+networks:
+  aeroshield-net:
+    driver: bridge
