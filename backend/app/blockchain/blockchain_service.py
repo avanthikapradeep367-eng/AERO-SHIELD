@@ -174,7 +174,7 @@ class BlockchainService:
         signed = self._account.sign_transaction(tx)
 
         try:
-            tx_hash = self._w3.eth.send_raw_transaction(signed.rawTransaction)
+            tx_hash = self._w3.eth.send_raw_transaction(signed.raw_transaction)
         except Exception as exc:
             raise TransactionError(
                 f"Failed to send transaction for {function_name}: {exc}",

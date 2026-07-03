@@ -28,12 +28,20 @@ from app.routes import auth, status, simulation
 async def lifespan(app: FastAPI):
     """
     Application lifespan handler.
-    - On startup  → configure logging, create DB tables
+    - On startup  → configure logging, create DB tables (graceful if DB is offline)
     - On shutdown → graceful teardown log
     """
     configure_logging()
-    Base.metadata.create_all(bind=engine)
-    logger.info("AERO-SHIELD API started. Database tables verified.")
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("AERO-SHIELD API started. Database tables verified.")
+    except Exception as db_err:
+        logger.warning(
+            "Database unavailable at startup (%s). "
+            "Endpoints requiring PostgreSQL will return 503. "
+            "Start PostgreSQL and restart to enable DB features.",
+            db_err,
+        )
     yield
     logger.info("AERO-SHIELD API shutting down.")
 
