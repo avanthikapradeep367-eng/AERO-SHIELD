@@ -437,3 +437,266 @@ app/blockchain/
 | `GasEstimationError` | Transaction would revert (e.g. duplicate ID, invalid score) | Check input values match the Solidity `require()` constraints |
 | `DeviceNotFoundError` | Device ID does not exist on-chain | Register it first with `register_device()` |
 | `EvidenceTamperingError` | Evidence file hash does not match on-chain record | The file has been modified after submission |
+
+---
+
+## 🏗️ Project Architecture Overview (Member 1 + Member 2 + Member 3)
+
+AERO-SHIELD's backend is composed of three independently owned layers that meet at well-defined interface boundaries — each member's code can be developed, tested, and swapped without the others changing:
+
+```
+                        ┌─────────────────────────────┐
+                        │   FastAPI routes/ (HTTP)     │
+                        │  routes/simulation.py, etc.  │
+                        └───────────────┬───────────────┘
+                                        │  Depends()
+                        ┌───────────────▼───────────────┐
+                        │   SimulationService             │
+                        │  (business orchestration)       │
+                        └─────┬───────────────────┬───────┘
+                              │                    │
+              IAIService ─────┘                    └───── IBlockchainService
+           (interfaces/ai_interface.py)         (interfaces/blockchain_interface.py)
+                    │                                        │
+   ┌────────────────▼────────────────┐      ┌────────────────▼────────────────┐
+   │  Member 1 — AIService            │      │  Member 1 — BlockchainService    │
+   │  services/ai_service.py          │      │  services/blockchain_service.py  │
+   │  (interface/adapter layer;       │      │  (mock/interface layer, unless   │
+   │   now delegates to Member 3)     │      │   Member 2's app/blockchain/     │
+   │                                  │      │   is wired in)                  │
+   └────────────────┬─────────────────┘      └────────────────┬────────────────┘
+                    │                                          │
+   ┌────────────────▼─────────────────┐      ┌─────────────────▼────────────────┐
+   │  Member 3 — SentinelX AI Engine   │      │  Member 2 — Blockchain Layer      │
+   │  app/ai/  (datasets →             │      │  app/blockchain/ (EvidenceVault   │
+   │  preprocessing → models →         │      │  smart contract via Web3.py)      │
+   │  inference → sentinelx)           │      │                                   │
+   └───────────────────────────────────┘      └───────────────────────────────────┘
+```
+
+**How a request flows end-to-end** (`POST /api/v1/simulate-attack`):
+
+1. The route delegates to `SimulationService.process_attack()` — no business logic in the route itself.
+2. `SimulationService` calls `IAIService.analyze_request()` — implemented today by Member 1's `AIService`, which now internally delegates to Member 3's `SentinelXEngine` (see *AI Module (SentinelX)* below) instead of returning mocked data.
+3. If the resulting `risk_score` exceeds the high-risk threshold, `SimulationService` calls `IBlockchainService.log_attack()` (Member 2's contract-backed implementation, or Member 1's mock until it's wired in) and rotates the device's rolling key.
+4. A single `AttackResponse` is returned to the caller, combining the AI verdict and the automated response outcome.
+
+Because every boundary is an abstract interface (`IAIService`, `IBlockchainService`) or a duck-typed contract (`BaseModel.predict()`), each member's layer was built, tested, and swapped in independently — Member 3's entire SentinelX engine was implemented and verified without ever touching a route, schema, or interface file.
+
+---
+
+## 🧠 AI Module (SentinelX)
+
+Member 3's contribution replaces the original mocked `AIService` with a real, CUDA-ready threat-detection pipeline, while preserving the `IAIService` contract byte-for-byte (same method signatures, same response shapes).
+
+### Synthetic Dataset Generation
+
+`app/ai/datasets/generator.py`'s `SyntheticEventGenerator` produces deterministic, seeded `AttackEventRecord` samples across 7 categories — Normal traffic, Replay Attack, Brute Force, Spoofing, DoS, Invalid Rolling Key, and Abnormal Device Behavior — each with realistic, category-specific value ranges (request rate, rolling-key validity, packet loss, RF signal strength, etc.). `AttackLogDataset` (registered as `"attack_logs"` in the dataset registry) wraps the generator behind the standard `BaseDataset` interface (`load()` / `__len__()` / `__getitem__()`), with built-in structural and semantic validation (`app/ai/datasets/validators.py`) — duplicate-ID checks, future-timestamp checks, and label-consistency checks.
+
+### Preprocessing Pipeline
+
+`app/ai/preprocessing/pipeline.py`'s `PreprocessingPipeline` turns raw `AttackEventRecord`s into model-ready tensors in one fit-once/transform-many object: extract → validate → enrich (rolling-key history features) → encode (categorical one-hot) → scale (numeric standardization) → flatten into a `TensorBatch`. Scaler/encoder statistics are computed once via `.fit()` and reused unchanged on every subsequent `.transform()` call — exactly mirroring how a production model must never re-fit on live traffic.
+
+### Feature Engineering
+
+- **Base features** (`feature_extraction.py`): request rate, payload size, session duration, packet loss, RF signal strength (+ a missing-value flag), rolling-key version/validity, auth success, ports, and a stable hashed bucket of the source IP. `severity_hint` is deliberately excluded — it's assigned by the generator *from* the label, so including it would leak the answer.
+- **Rolling-key features** (`rolling_key_features.py`): device-history-aware signals — version delta from the last seen key, whether a version was reused (replay signature), and a running count of consecutive invalid keys (brute-force signature) — computed deterministically regardless of input order.
+- **Temporal sequencing** (`temporal_sequence.py`): per-device sliding windows for future sequence-model architectures.
+- **Categorical encoding / numerical scaling**: fixed-vocabulary one-hot encoding (built from the schema's `Enum`s, not fit from data) and standard/min-max scaling, both independently serializable via `to_dict()`/`from_dict()`.
+
+### Isolation Forest Model
+
+`app/ai/models/isolation_forest.py`'s `IsolationForestModel` wraps `sklearn.ensemble.IsolationForest` — an unsupervised anomaly detector. `load_weights()` deserializes a **pre-trained** estimator via `joblib.load()` (no training happens in this codebase); `predict()` maps sklearn's inlier/outlier output to the project's `1 = attack, 0 = normal` convention and produces a `[0, 1]` confidence via a logistic squash of the decision score. scikit-learn/joblib are imported lazily — importing this module never requires them to be installed.
+
+### Autoencoder Model
+
+`app/ai/models/autoencoder.py`'s `AutoencoderModel` is a reconstruction-error-based anomaly detector backed by a small feed-forward PyTorch network (`Linear → ReLU` encoder/decoder). A sample the network reconstructs poorly (MSE above a calibrated threshold) is flagged as anomalous. It returns the **exact same prediction shape** as `IsolationForestModel` (`.prediction` / `.confidence` / `.metadata`), so the two models are fully interchangeable — swapping one for the other requires zero changes to `InferenceEngine` or `SentinelXEngine`. PyTorch is imported lazily, and the `nn.Module` architecture class is defined *inside* a function so merely importing this file never triggers `import torch`.
+
+### CUDA Acceleration with Automatic CPU Fallback
+
+`app/ai/utils/device.py` provides `get_device("cpu" | "cuda" | "auto")` and `is_cuda_available()`, shared by every model and by `SentinelXEngine.status()`. `AutoencoderModel` auto-detects the best device at construction time, moves the model and every input tensor to it as a single batched transfer, and runs inference inside `torch.inference_mode()`. CUDA logic is strictly confined to `utils/device.py` and `models/autoencoder.py` — every other layer (`inference/`, `sentinelx/`, `preprocessing/`, `datasets/`) has zero knowledge of CUDA/GPU concerns. If CUDA — or PyTorch itself — is unavailable, every device-resolution path falls back to `"cpu"` automatically, so the whole `app/ai/` package imports and runs cleanly on a CPU-only machine.
+
+### Inference Engine
+
+`app/ai/inference/engine.py`'s `InferenceEngine` orchestrates `AttackEventRecord(s)/BaseDataset → PreprocessingPipeline.transform() → TensorBatch → ModelManager.get(model_name) → BaseModel.predict() → InferenceResult`. It is model-agnostic **by contract, not by type-checking** — it never imports a concrete model class, only requiring (via runtime duck-typing) that `predict()` returns something exposing `.prediction`/`.confidence`/`.metadata`. Supports single-event (`predict_event`), batch (`predict_records`), and dataset-wide (`predict_dataset`) inference through one polymorphic `predict()` entry point.
+
+### Investigation Agent
+
+`app/ai/sentinelx/investigator.py`'s `InvestigationAgent` converts a raw `InferenceResult` into a structured, analyst-facing `InvestigationReport`: a per-event `ATTACK`/`NORMAL` verdict and a severity tier (`NONE`/`LOW`/`MEDIUM`/`HIGH`/`CRITICAL`) derived from the model's confidence. Pure triage — it takes no action itself.
+
+### Attack Classifier
+
+`app/ai/sentinelx/classifier.py`'s `AttackClassifier` converts an `InvestigationReport` into standardized attack categories (Normal, Replay Attack, Brute Force, Spoofing, DoS, Invalid Rolling Key, Abnormal Device Behavior, Unknown). Since the current models only predict ATTACK/NORMAL (not *which* attack), this stage applies domain-derived heuristic rules — mirroring the same signal characteristics the synthetic generator uses to construct each category — with required/supporting signal gating so generic signals can't win a category on partial credit alone. Falls back to `Unknown` rather than guessing when no rule matches confidently.
+
+### Response Agent
+
+`app/ai/sentinelx/response_agent.py`'s `ResponseAgent` converts classifications into recommended actions and priority — **it never executes anything**:
+
+| Attack Category | Recommended Action |
+|---|---|
+| Normal | Monitor |
+| Replay Attack | Rotate Key |
+| Brute Force | Block Device |
+| Spoofing | Blacklist Device |
+| DoS | Rate Limit |
+| Invalid Rolling Key | Force Re-authentication |
+| Abnormal Device Behavior | Alert + Monitor |
+| Unknown | Manual Investigation |
+
+Priority is escalated (never lowered) by the underlying severity tier, and every recommendation carries human-readable reasoning plus an `immediate_action_required` flag.
+
+### SentinelX Engine
+
+`app/ai/sentinelx/engine.py`'s `SentinelXEngine` is the top-level orchestrator, wiring the four stages above into one call: `analyze()` (accepts a record, a list of records, or a dataset) and `analyze_single()` both return one `SentinelXAnalysis` bundling `inference_result`, `investigation_report`, `classification_report`, and `response_report`.
+
+### AIService Integration
+
+`app/services/ai_service.py`'s `AIService` (Member 1's original interface class) now builds a process-wide `SentinelXEngine` on first use and delegates to it, translating `SentinelXAnalysis` into the pre-existing `AIAnalysisResult`/`AIStatusResult` response shapes. The `IAIService` contract, both method signatures, and `routes/simulation.py`'s dependency injection are all **unchanged** — this is a drop-in replacement for the mock. If no trained model is deployed (`AI_MODEL_WEIGHTS_PATH` unset), `analyze_request()` honestly raises the pre-existing `AIUnavailableError` (`503`) rather than fabricating a result.
+
+---
+
+## 📂 Folder Structure — `app/ai/`
+
+```
+app/ai/
+├── __init__.py             # Package facade (AIConfig, exceptions, SentinelXEngine)
+├── config.py                # AIConfig / load_config() (env var loading)
+├── exceptions.py             # AIBaseError hierarchy
+├── datasets/
+│   ├── base.py                 # BaseDataset ABC
+│   ├── schema.py                # AttackEventRecord, EventType, DeviceType, Protocol
+│   ├── generator.py              # SyntheticEventGenerator (7 event categories)
+│   ├── validators.py              # Dataset-level structural/semantic validation
+│   ├── loader.py                   # AttackLogDataset ("attack_logs")
+│   └── registry.py                  # register_dataset / get_dataset / list_datasets
+├── preprocessing/
+│   ├── feature_extraction.py        # AttackEventRecord -> FeatureVector
+│   ├── feature_validation.py         # NaN/Inf/shape validation
+│   ├── categorical_encoding.py        # Fixed-vocabulary one-hot encoding
+│   ├── numerical_scaling.py            # Standard/min-max scaling
+│   ├── rolling_key_features.py          # Device-history-aware key features
+│   ├── temporal_sequence.py              # Per-device sliding windows
+│   ├── tensor_prep.py                     # TensorBatch (model-input-ready rows)
+│   ├── pipeline.py                         # PreprocessingPipeline (fit/transform)
+│   └── tests/test_preprocessing.py         # 51 unit tests (stdlib unittest)
+├── models/
+│   ├── base.py                # BaseModel ABC (load_weights/to_device/predict)
+│   ├── registry.py              # register_model / get_model / list_models
+│   ├── model_manager.py           # ModelManager (load/unload/get lifecycle)
+│   ├── isolation_forest.py          # IsolationForestModel (scikit-learn)
+│   └── autoencoder.py                # AutoencoderModel (PyTorch, CUDA-aware)
+├── inference/
+│   └── engine.py                # InferenceEngine (preprocess -> predict orchestration)
+├── sentinelx/
+│   ├── engine.py                 # SentinelXEngine (top-level orchestrator)
+│   ├── investigator.py             # InvestigationAgent (verdict + severity triage)
+│   ├── classifier.py                 # AttackClassifier (rule-based sub-categorization)
+│   └── response_agent.py               # ResponseAgent (action + priority — recommendation only)
+└── utils/
+    └── device.py               # get_device / is_cuda_available / device_summary
+```
+
+---
+
+## 🔄 AI Workflow — From Request to Response
+
+```
+1. HTTP request
+   POST /api/v1/simulate-attack   { device_id, attack_type, source_ip, payload_sample }
+
+2. routes/simulation.py → SimulationService.process_attack()
+   (no business logic in the route itself)
+
+3. SimulationService → AIService.analyze_request(request_data)
+   (Member 1's IAIService implementation)
+
+4. AIService synthesizes one representative AttackEventRecord for the
+   requested attack_type (via app.ai.datasets.SyntheticEventGenerator —
+   the HTTP payload alone doesn't carry the telemetry the model needs),
+   then calls SentinelXEngine.analyze_single(record)
+
+5. SentinelXEngine runs the full pipeline:
+      PreprocessingPipeline.transform()  →  TensorBatch
+      ModelManager.get(model)            →  loaded BaseModel
+      BaseModel.predict(TensorBatch)     →  InferenceResult
+      InvestigationAgent.investigate()   →  InvestigationReport
+      AttackClassifier.classify()        →  ClassificationReport
+      ResponseAgent.recommend()          →  ResponseReport
+   → returns one SentinelXAnalysis bundling all four reports
+
+6. AIService translates SentinelXAnalysis into the existing
+   AIAnalysisResult shape: { risk_score, threat_detected, attack_labels,
+   ai_confidence, analysis_id, model, timestamp }
+
+7. SimulationService applies the existing high-risk logic
+   (risk_score > 90 → log to blockchain + rotate rolling key)
+
+8. HTTP response
+   AttackResponse { risk_score, threat_detected, key_rotated,
+   blockchain_logged, action_taken, ... }
+```
+
+If no model is loaded (`AI_MODEL_WEIGHTS_PATH` unset), step 4 short-circuits and the response is a `503 Service Unavailable` — the pipeline never fabricates a result.
+
+---
+
+## 🧩 AI Module — Installation Instructions
+
+### Python Version
+
+**Python 3.12 is recommended.** Python 3.14 may fail to install some dependencies — packages like `pydantic-core` and `psycopg2-binary` may not yet have prebuilt wheels for the newest Python version and will attempt to compile from source (requiring a Rust toolchain and a C/C++ linker), which commonly fails on machines without those build tools installed.
+
+```powershell
+python --version
+```
+
+If it reports 3.13 or 3.14 and you hit build errors below, install Python 3.12 from [python.org/downloads](https://www.python.org/downloads/) and create your virtual environment with it explicitly (`py -3.12 -m venv venv`).
+
+### Virtual Environment Creation
+
+```bash
+# Windows
+python -m venv venv
+venv\Scripts\activate
+
+# Linux / macOS
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### Dependency Installation
+
+```bash
+cd backend
+pip install -r requirements.txt
+```
+
+### Additional AI Dependencies
+
+`torch`, `torchvision`, `torchaudio`, `scikit-learn`, and `joblib` are **not yet listed in `requirements.txt`** — the AI module imports them lazily, so the rest of the backend runs fine without them, but they're required to actually load/run a trained model (`IsolationForestModel` needs scikit-learn + joblib; `AutoencoderModel` needs PyTorch):
+
+```bash
+# Windows and Linux — identical command (CPU-only build)
+pip install torch torchvision torchaudio
+pip install scikit-learn joblib
+```
+
+For a CUDA-enabled PyTorch build (optional, requires an NVIDIA GPU + CUDA toolkit), see [pytorch.org/get-started/locally](https://pytorch.org/get-started/locally/) for the correct `--index-url` for your CUDA version — otherwise the CPU-only install above works everywhere, and every model in this module falls back to CPU automatically.
+
+Verify:
+
+```bash
+python -c "import torch; print(torch.__version__, 'CUDA:', torch.cuda.is_available())"
+python -c "import sklearn; print(sklearn.__version__)"
+```
+
+---
+
+## ▶️ Backend Execution
+
+```bash
+cd backend
+uvicorn app.main:app --reload
+```
+
+Server starts at **http://127.0.0.1:8000** (Swagger UI at `/docs`). The AI module initializes lazily on the first request that needs it — a missing `AI_MODEL_WEIGHTS_PATH` does not prevent the rest of the API from starting.
