@@ -8,7 +8,10 @@ Component checks:
     blockchain  — Ganache / EVM node reachability
     contract    — Smart contract deployment and call availability
     wallet      — ETH balance and wallet accessibility
-    ai_engine   — Member 3's SentinelX AI module reachability
+    ai_engine   — SentinelX (Member 3) in-process model status — SentinelX runs
+                  inside this FastAPI process (see app/services/ai_service.py),
+                  not as a standalone service, so this reports whether a trained
+                  model is loaded rather than probing any network port.
     fastapi     — Self (always ONLINE when this runs)
     memory      — Host RAM usage via psutil
     cpu         — Host CPU usage via psutil
@@ -20,6 +23,7 @@ Status values: ONLINE | DEGRADED | OFFLINE | UNKNOWN
 
 from __future__ import annotations
 
+import asyncio
 import threading
 import time
 from datetime import datetime, timezone
@@ -121,20 +125,37 @@ def _check_wallet() -> dict[str, Any]:
 
 def _check_ai_engine() -> dict[str, Any]:
     """
-    SentinelX AI (Member 3) runs on port 8001.
-    We do a lightweight socket-level ping without importing their module.
+    SentinelX (Member 3) is integrated in-process (app/services/ai_service.py
+    -> app.ai.sentinelx.SentinelXEngine) — it is not a standalone service, so
+    there is no port to probe. Status reflects whether a trained model is
+    loaded, mirroring the same AIService.get_status() used by /api/v1/health.
     """
-    import socket
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(2)
-        result = s.connect_ex(("127.0.0.1", 8001))
-        s.close()
-        if result == 0:
-            return _component("ai_engine", "ONLINE", "SentinelX AI reachable on :8001")
-        return _component("ai_engine", "OFFLINE", "SentinelX AI not reachable on :8001 (may be standalone)")
+        from app.services.ai_service import AIService
+
+        info = _run_with_timeout(lambda: asyncio.run(AIService().get_status()), timeout=5.0, default=None)
+        if info is None:
+            return _component("ai_engine", "UNKNOWN", "AI engine status check timed out")
+
+        if info.get("status") == "operational":
+            return _component("ai_engine", "ONLINE", f"Model loaded: {info.get('model')}", {
+                "model": info.get("model"),
+                "cuda_available": info.get("cuda_available"),
+                "device": info.get("device"),
+            })
+
+        return _component(
+            "ai_engine",
+            "DEGRADED",
+            "SentinelX engine is running but no trained model is loaded "
+            "(AI_MODEL_WEIGHTS_PATH not set or failed to load)",
+            {
+                "cuda_available": info.get("cuda_available"),
+                "device": info.get("device"),
+            },
+        )
     except Exception as exc:
-        return _component("ai_engine", "UNKNOWN", str(exc))
+        return _component("ai_engine", "OFFLINE", f"SentinelX engine failed to initialize: {exc}")
 
 
 def _check_fastapi() -> dict[str, Any]:
