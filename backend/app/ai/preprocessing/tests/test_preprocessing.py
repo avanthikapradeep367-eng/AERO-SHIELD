@@ -345,7 +345,6 @@ class TestTemporalSequence(unittest.TestCase):
             build_sequences([], window_size=0)
 
     def test_label_reflects_last_real_event(self) -> None:
-        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
         vectors = self._sequence_for_device(3)
         vectors[-1] = replace(vectors[-1], label_is_attack=True, label_event_type="DOS")
         windows = build_sequences(vectors, window_size=3, stride=3, pad_incomplete=True)

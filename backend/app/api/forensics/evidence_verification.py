@@ -232,7 +232,6 @@ def verify_evidence_endpoint(
             logger.warning("Chain-of-custody update failed (non-fatal): %s", coc_exc)
 
         elapsed = round((time.monotonic() - t0) * 1000, 2)
-        is_verified = result.verification_status == verifier.VERIFIED
 
         logger.warning(
             "verify_evidence | incident=%s | status=%s | score=%d | elapsed=%.1fms",

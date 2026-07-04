@@ -3,7 +3,11 @@ import { normalizeBlockchain } from "./envelopes";
 import type { AuthenticationHistory, AuthRecord, RecordAuthenticationRequest } from "../types/blockchain";
 
 export function recordAuthentication(payload: RecordAuthenticationRequest) {
-  return normalizeBlockchain<AuthRecord>(apiClient.post("/blockchain/authentication", payload));
+  // Trailing slash matches the route's actual registration (@router.post("/")
+  // under the /blockchain/authentication prefix); omitting it causes an
+  // extra 307-redirect round trip — see api/timeline.ts's getTimeline() for
+  // the same fix.
+  return normalizeBlockchain<AuthRecord>(apiClient.post("/blockchain/authentication/", payload));
 }
 
 export function getAuthenticationCount() {

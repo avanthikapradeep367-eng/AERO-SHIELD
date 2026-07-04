@@ -3,7 +3,11 @@ import { normalizeBlockchain } from "./envelopes";
 import type { IncidentRecord, RecordEvidenceRequest } from "../types/blockchain";
 
 export function recordEvidence(payload: RecordEvidenceRequest) {
-  return normalizeBlockchain<IncidentRecord>(apiClient.post("/blockchain/evidence", payload));
+  // Trailing slash matches the route's actual registration (@router.post("/")
+  // under the /blockchain/evidence prefix); omitting it causes an extra
+  // 307-redirect round trip — see api/timeline.ts's getTimeline() for the
+  // same fix.
+  return normalizeBlockchain<IncidentRecord>(apiClient.post("/blockchain/evidence/", payload));
 }
 
 export function getEvidenceCount() {

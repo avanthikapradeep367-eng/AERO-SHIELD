@@ -11,7 +11,6 @@ All functions return a ForensicReport dict matching Part 6 of the spec.
 
 from __future__ import annotations
 
-import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -78,7 +77,6 @@ def verify_database_record(
     Returns:
         ForensicReport dict.
     """
-    t0 = time.monotonic()
     logger.info("verify_database_record | incident_id=%s", incident_id)
 
     h = hash_json(record_data, label=incident_id)

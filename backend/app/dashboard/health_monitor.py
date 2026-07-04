@@ -104,8 +104,6 @@ def _check_contract() -> dict[str, Any]:
 def _check_wallet() -> dict[str, Any]:
     try:
         from app.blockchain.web3_client import get_web3, get_account
-        from app.blockchain.config import load_config
-        cfg = load_config()
         w3  = get_web3()
         acct = get_account()
         wallet_addr = acct.address
@@ -198,7 +196,7 @@ def _check_disk() -> dict[str, Any]:
             "free_gb":   round(d.free  / (1024 ** 3), 2),
             "used_percent": pct,
         })
-    except Exception as exc:
+    except Exception:
         # On Windows "/" may fail — try C:
         try:
             d = psutil.disk_usage("C:\\")

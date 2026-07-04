@@ -61,7 +61,9 @@ def get_simulation_service(
         "2. **High-risk path** (risk > 90) — The event is logged to the "
         "blockchain and the device rolling key is rotated.\n"
         "3. **Low-risk path** — Event is analysed only; no further action.\n\n"
-        "_Blockchain and AI responses are mocked pending Member 2 / Member 3 integration._"
+        "AI analysis runs on the real SentinelX pipeline, and the high-risk path "
+        "seals evidence on the real EvidenceVault contract — both return genuine, "
+        "non-mocked results."
     ),
     responses={
         200: {"description": "Simulation completed; see response body for outcome"},
