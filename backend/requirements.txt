@@ -30,3 +30,13 @@ eth-account>=0.10.0
 
 # System resource metrics (CPU/memory/disk) for app/dashboard/health_monitor.py
 psutil>=5.9.0
+
+# ── SentinelX AI Module (Member 3) ───────────────────────────────────────────────
+
+# Isolation Forest anomaly detector (app/ai/models/isolation_forest.py) + model persistence
+scikit-learn>=1.4.0
+joblib>=1.3.0
+
+# Autoencoder anomaly detector (app/ai/models/autoencoder.py) — CPU build; this
+# environment has no CUDA device (see app/ai/utils/device.py's auto-detection)
+torch>=2.2.0

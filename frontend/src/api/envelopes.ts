@@ -58,6 +58,13 @@ export function fromAxiosError(err: unknown, fallbackMessage = "Request failed")
           status,
         };
       }
+      // Some non-2xx responses (e.g. GET /system/health/ready) carry neither
+      // `detail` nor `message`, but do explain themselves via `reason` — see
+      // app/api/dashboard/health.py::readiness_probe. Surface it, and keep the
+      // whole body under `details` since callers may want the other fields too.
+      if (typeof body.reason === "string") {
+        return { message: body.reason, details: body, status };
+      }
     }
 
     return { message: err.message || fallbackMessage, status };

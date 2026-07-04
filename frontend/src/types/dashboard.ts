@@ -222,18 +222,76 @@ export interface DeviceGrowthQuery {
 }
 
 // ── Timeline ──────────────────────────────────────────────────────────
+// See app/dashboard/timeline.py and app/api/dashboard/timeline.py. The three
+// endpoints return genuinely different event shapes — /timeline (unified)
+// includes severity/icon/data; the two source-specific sub-timelines
+// (/timeline/custody, /timeline/threats) are simpler ad-hoc shapes without
+// severity/icon, carrying their own source-specific fields instead of `data`.
 
+export type TimelineEventType = "INCIDENT" | "AUTHENTICATION" | "DEVICE" | "THREAT" | "CUSTODY" | "SYSTEM";
+export type TimelineSeverity = "critical" | "high" | "medium" | "low" | "info";
+
+/** One entry of GET /timeline's `events` array — see dashboard/timeline.py::get_timeline. */
 export interface TimelineEvent {
-  id: string;
-  type: string;
-  timestamp: string;
-  summary: string;
-  [extra: string]: unknown;
+  time: string;
+  title: string;
+  description: string;
+  status: string;
+  type: TimelineEventType;
+  severity: TimelineSeverity;
+  icon: string;
+  data?: Record<string, unknown>;
 }
 
+/** GET /timeline */
 export interface TimelineResponse {
+  success: boolean;
+  message: string;
+  timestamp: string;
+  count: number;
   events: TimelineEvent[];
-  [extra: string]: unknown;
+}
+
+/** One entry of GET /timeline/custody's `events` array. */
+export interface CustodyTimelineEvent {
+  time: string;
+  title: string;
+  description: string;
+  status: string;
+  type: "CUSTODY";
+  evidence_id: string | null;
+  actor: string | null;
+}
+
+/** GET /timeline/custody */
+export interface CustodyTimelineResponse {
+  success: boolean;
+  message: string;
+  timestamp: string;
+  count: number;
+  events: CustodyTimelineEvent[];
+}
+
+/** One entry of GET /timeline/threats' `events` array. */
+export interface ThreatTimelineEvent {
+  time: string;
+  title: string;
+  description: string;
+  status: string;
+  type: "THREAT";
+  threat_id: string;
+  device_id: string;
+  risk_score: number;
+  on_chain: boolean;
+}
+
+/** GET /timeline/threats */
+export interface ThreatTimelineResponse {
+  success: boolean;
+  message: string;
+  timestamp: string;
+  count: number;
+  events: ThreatTimelineEvent[];
 }
 
 export interface TimelineQuery {

@@ -36,3 +36,7 @@ logs/
 dist/
 build/
 *.egg-info/
+
+# ── Trained AI model artifacts (regenerate via backend/scripts/train_ai_models.py) ─
+backend/app/ai/models/weights/*.joblib
+backend/app/ai/models/weights/*.pt
