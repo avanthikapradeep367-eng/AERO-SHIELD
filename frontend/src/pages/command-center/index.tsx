@@ -1,26 +1,46 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { StatCard } from "../../components/dashboard/StatCard";
 import { ChartCard } from "../../components/dashboard/ChartCard";
 import { StatusCard } from "../../components/dashboard/StatusCard";
 import { ThreatTimelineChart, type ThreatTimelinePoint } from "../../components/dashboard/ThreatTimelineChart";
 import { RiskDonutChart, type RiskSegment } from "../../components/dashboard/RiskDonutChart";
+import { getIncidentGrowth, getRiskDistribution } from "../../api/analytics";
+import { getOverview } from "../../api/dashboard";
+import { getBlockchainHealth } from "../../api/systemHealth";
+import type { NormalizedError } from "../../api/envelopes";
+import type { IncidentGrowthChartResponse, OverviewResponse, RiskDistributionChartResponse } from "../../types/dashboard";
+import type { BlockchainHealthSnapshot } from "../../types/health";
 
-const THREAT_TIMELINE: ThreatTimelinePoint[] = [
-  { label: "00:00", threats: 4 },
-  { label: "03:00", threats: 6 },
-  { label: "06:00", threats: 5 },
-  { label: "09:00", threats: 8 },
-  { label: "12:00", threats: 7 },
-  { label: "15:00", threats: 9 },
-  { label: "18:00", threats: 11 },
-  { label: "21:00", threats: 10 },
-];
+interface ResourceState<T> {
+  status: "loading" | "success" | "error";
+  data: T | null;
+  error: NormalizedError | null;
+}
 
-const RISK_DISTRIBUTION: RiskSegment[] = [
-  { name: "Low", value: 65, color: "#2f6fed" },
-  { name: "Medium", value: 25, color: "#22c3ee" },
-  { name: "High", value: 10, color: "#f6923a" },
-];
+function useResource<T>(fetcher: () => Promise<{ ok: boolean; data: T | null; error: NormalizedError | null }>) {
+  const [state, setState] = useState<ResourceState<T>>({ status: "loading", data: null, error: null });
+
+  useEffect(() => {
+    let cancelled = false;
+    setState({ status: "loading", data: null, error: null });
+
+    fetcher().then((result) => {
+      if (cancelled) return;
+      setState({
+        status: result.ok && result.data !== null ? "success" : "error",
+        data: result.data,
+        error: result.error,
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fetcher]);
+
+  return state;
+}
 
 function AircraftIcon() {
   return (
@@ -84,39 +104,112 @@ function LegendDot({ color, label, value }: { color: string; label: string; valu
 }
 
 export default function CommandCenterPage() {
+  const overview = useResource<OverviewResponse>(useCallback(() => getOverview(), []));
+  const blockchainHealth = useResource<BlockchainHealthSnapshot>(useCallback(() => getBlockchainHealth(), []));
+  const incidentGrowth = useResource<IncidentGrowthChartResponse>(useCallback(() => getIncidentGrowth({ days: 7 }), []));
+  const riskDistribution = useResource<RiskDistributionChartResponse>(useCallback(() => getRiskDistribution(), []));
+
+  const timelineData = useMemo<ThreatTimelinePoint[]>(() => {
+    if (!incidentGrowth.data?.labels || !incidentGrowth.data?.datasets?.[0]?.data) {
+      return [];
+    }
+
+    return incidentGrowth.data.labels.map((label, index) => ({
+      label,
+      threats: Number(incidentGrowth.data?.datasets?.[0]?.data?.[index] ?? 0),
+    }));
+  }, [incidentGrowth.data]);
+
+  const riskSegments = useMemo<RiskSegment[]>(() => {
+    if (!riskDistribution.data?.labels || !riskDistribution.data?.datasets?.[0]?.data) {
+      return [];
+    }
+
+    const palette = ["#2f6fed", "#22c3ee", "#f6923a", "#f24c3d"];
+    return riskDistribution.data.labels.map((label, index) => ({
+      name: label,
+      value: Number(riskDistribution.data?.datasets?.[0]?.data?.[index] ?? 0),
+      color: palette[index % palette.length],
+    }));
+  }, [riskDistribution.data]);
+
+  const overviewCounters = overview.data?.overview;
+  const blockchainNode = overview.data?.blockchain;
+  const backendStatus = overview.status === "success" && overview.data?.success ? "Connected" : overview.status === "error" ? "Unavailable" : "Loading";
+  const blockchainStatus = blockchainHealth.status === "success" && blockchainHealth.data?.connected ? "Connected" : "Offline";
+  const centerLabel = riskSegments.length > 0 ? riskSegments[0]?.name ?? "—" : "—";
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Dashboard"
-        description="Real-time fleet security posture, threat activity, and blockchain integrity."
+        description="Live fleet security posture, threat activity, and blockchain integrity."
       />
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Aircraft Health" value="98%" icon={<AircraftIcon />} accent="accent" />
-        <StatCard label="Active Threats" value="03" icon={<ThreatIcon />} accent="orange" />
-        <StatCard label="Evidence Blocks" value="1,284" icon={<BlocksIcon />} accent="cyan" />
-        <StatCard label="Risk Score" value="Low" icon={<GaugeIcon />} accent="success" />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Registered Devices"
+          value={overviewCounters?.registered_devices ?? "—"}
+          icon={<AircraftIcon />}
+          accent="accent"
+        />
+        <StatCard
+          label="Active Threats"
+          value={overviewCounters?.active_threats ?? "—"}
+          icon={<ThreatIcon />}
+          accent="orange"
+        />
+        <StatCard
+          label="Evidence Blocks"
+          value={overviewCounters?.evidence_count ?? "—"}
+          icon={<BlocksIcon />}
+          accent="cyan"
+        />
+        <StatCard
+          label="Blockchain Node"
+          value={blockchainNode?.network ?? "—"}
+          icon={<GaugeIcon />}
+          accent="success"
+        />
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         <ChartCard title="Threat Detection Timeline" className="lg:col-span-2">
-          <ThreatTimelineChart data={THREAT_TIMELINE} />
+          {incidentGrowth.status === "loading" ? (
+            <p className="text-sm text-ink-faint">Loading threat timeline…</p>
+          ) : incidentGrowth.status === "error" && incidentGrowth.error ? (
+            <p className="text-sm text-danger">{incidentGrowth.error.message}</p>
+          ) : (
+            <ThreatTimelineChart data={timelineData} />
+          )}
         </ChartCard>
 
         <ChartCard title="Risk Distribution">
-          <RiskDonutChart data={RISK_DISTRIBUTION} centerLabel="Low" />
-          <div className="mt-5 flex flex-col gap-2">
-            {RISK_DISTRIBUTION.map((segment) => (
-              <LegendDot key={segment.name} color={segment.color} label={segment.name} value={segment.value} />
-            ))}
-          </div>
+          {riskDistribution.status === "loading" ? (
+            <p className="text-sm text-ink-faint">Loading risk distribution…</p>
+          ) : riskDistribution.status === "error" && riskDistribution.error ? (
+            <p className="text-sm text-danger">{riskDistribution.error.message}</p>
+          ) : (
+            <>
+              <RiskDonutChart data={riskSegments} centerLabel={centerLabel} />
+              <div className="mt-3 flex flex-col gap-1.5">
+                {riskSegments.map((segment) => (
+                  <LegendDot key={segment.name} color={segment.color} label={segment.name} value={segment.value} />
+                ))}
+              </div>
+            </>
+          )}
         </ChartCard>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-        <StatusCard label="Blockchain Status" value="SYNCED" tone="success" />
-        <StatusCard label="Authentication Logs" value="Verified" tone="info" />
-        <StatusCard label="Maintenance" value="2 Alerts" tone="warning" />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatusCard label="Backend API" value={backendStatus} tone={backendStatus === "Connected" ? "success" : "warning"} />
+        <StatusCard label="Blockchain Status" value={blockchainStatus} tone={blockchainStatus === "Connected" ? "success" : "warning"} />
+        <StatusCard
+          label="Authentication Logs"
+          value={overviewCounters?.authentication_count ? `${overviewCounters.authentication_count}` : "0"}
+          tone="info"
+        />
       </div>
     </div>
   );

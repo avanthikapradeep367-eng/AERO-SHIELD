@@ -14,12 +14,12 @@ interface StatusCardProps {
 
 export function StatusCard({ label, value, tone = "info" }: StatusCardProps) {
   return (
-    <div className="glass-panel rounded-2xl p-5">
+    <div className="glass-panel rounded-2xl p-3.5">
       <div className="flex items-center gap-2">
         <span className={`h-2.5 w-2.5 rounded-full ${DOT_CLASSES[tone]}`} />
-        <p className="text-xs font-medium text-ink-faint">{label}</p>
+        <p className="text-[11px] font-medium text-ink-faint">{label}</p>
       </div>
-      <p className="mt-2 text-xl font-semibold text-ink">{value}</p>
+      <p className="mt-1 text-base font-semibold text-ink">{value}</p>
     </div>
   );
 }

@@ -25,13 +25,13 @@ interface StatCardProps {
 
 export function StatCard({ label, value, icon, accent = "accent" }: StatCardProps) {
   return (
-    <div className="glass-panel flex items-center gap-4 rounded-2xl p-5">
-      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${ACCENT_ICON_CLASSES[accent]}`}>
+    <div className="glass-panel flex items-center gap-3 rounded-2xl p-3.5">
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${ACCENT_ICON_CLASSES[accent]}`}>
         {icon}
       </span>
       <div className="min-w-0">
-        <p className="text-xs font-medium text-ink-faint">{label}</p>
-        <p className={`tabular-nums mt-1 text-2xl font-semibold ${ACCENT_VALUE_CLASSES[accent]}`}>{value}</p>
+        <p className="text-[11px] font-medium text-ink-faint">{label}</p>
+        <p className={`tabular-nums mt-0.5 text-lg font-semibold ${ACCENT_VALUE_CLASSES[accent]}`}>{value}</p>
       </div>
     </div>
   );

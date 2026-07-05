@@ -1229,7 +1229,7 @@
       "type": "function"
     }
   ],
-  "generatedAt": "2026-07-05T11:27:16.756Z",
-  "network": "localhost",
-  "contractAddress": "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+  "generatedAt": "2026-07-05T18:46:44.032Z",
+  "network": "ganache",
+  "contractAddress": "0x3278Fe013fd6BE25DEb6d96318123F606a5bFbF4"
 }
