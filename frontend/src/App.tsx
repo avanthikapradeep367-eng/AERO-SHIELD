@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
+import CommandCenterPage from "./pages/command-center";
 import OverviewPage from "./pages/overview";
 import DevicesPage from "./pages/devices";
 import SimulateAttackPage from "./pages/simulate";
@@ -16,6 +17,7 @@ function App() {
     <Routes>
       <Route element={<AppShell />}>
         <Route index element={<OverviewPage />} />
+        <Route path="command-center" element={<CommandCenterPage />} />
         <Route path="devices" element={<DevicesPage />} />
         <Route path="simulate" element={<SimulateAttackPage />} />
         <Route path="authentication" element={<AuthenticationPage />} />
