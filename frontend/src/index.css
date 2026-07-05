@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
-  AERO-SHIELD dark cybersecurity theme.
+  AERO-SHIELD light glassmorphism theme.
   CSS-first Tailwind v4 tokens — each --color-* below becomes a utility
   (bg-background, text-ink-muted, border-line, bg-accent, etc.) with no
   separate tailwind.config.js needed.
@@ -11,43 +11,69 @@
   --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Code", ui-monospace, monospace;
 
   /* Surfaces */
-  --color-background: #0a0f13;
-  --color-surface: #10171c;
-  --color-surface-raised: #161f25;
-  --color-surface-hover: #1c272e;
-  --color-line: #223038;
-  --color-line-strong: #2d3e47;
+  --color-background: #eef5fc;
+  --color-surface: #ffffff;
+  --color-surface-raised: #f8fbfe;
+  --color-surface-hover: #eef4fb;
+  --color-line: #dde9f5;
+  --color-line-strong: #c7dbee;
 
   /* Text */
-  --color-ink: #e6eef0;
-  --color-ink-muted: #8ba0a8;
-  --color-ink-faint: #5c6f78;
+  --color-ink: #10233b;
+  --color-ink-muted: #5b7189;
+  --color-ink-faint: #93a7bc;
 
-  /* Accent (signal teal) */
-  --color-accent: #26d9c6;
-  --color-accent-strong: #57e9da;
-  --color-accent-muted: #123936;
+  /* Accent (aerospace blue / cyan / orange) */
+  --color-accent: #2f6fed;
+  --color-accent-strong: #1b4fce;
+  --color-accent-muted: #e4edfd;
+  --color-cyan: #22c3ee;
+  --color-cyan-muted: #e2f7fc;
+  --color-orange: #f6923a;
+  --color-orange-muted: #fdedde;
 
   /* Semantic status */
-  --color-success: #34d399;
-  --color-success-muted: #0f2e26;
-  --color-warning: #f2b84b;
-  --color-warning-muted: #332510;
-  --color-danger: #f2685a;
-  --color-danger-muted: #341614;
-  --color-info: #5aa9e6;
+  --color-success: #17a56b;
+  --color-success-muted: #e4f8ee;
+  --color-warning: #f6923a;
+  --color-warning-muted: #fdedde;
+  --color-danger: #ee4d5a;
+  --color-danger-muted: #fce9eb;
+  --color-info: #2f6fed;
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
   margin: 0;
   background-color: var(--color-background);
+  background-image:
+    radial-gradient(circle at 12% 8%, rgba(47, 111, 237, 0.10), transparent 40%),
+    radial-gradient(circle at 88% 18%, rgba(34, 195, 238, 0.10), transparent 38%),
+    radial-gradient(circle at 50% 92%, rgba(246, 146, 58, 0.08), transparent 42%);
+  background-attachment: fixed;
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle background grid, used as a full-bleed fixed layer behind the app shell. */
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(47, 111, 237, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(47, 111, 237, 0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Reusable glass panel treatment for cards. */
+.glass-panel {
+  background-color: rgb(255 255 255 / 0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgb(255 255 255 / 0.6);
+  box-shadow: 0 20px 40px -24px rgba(31, 79, 173, 0.25);
 }
 
 /* Tabular numerals wherever figures line up in columns. */
