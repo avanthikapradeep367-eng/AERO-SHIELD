@@ -11,7 +11,7 @@ An edge AI cybersecurity platform that detects and classifies cyber-attacks in r
 
 ## Results
 
-- 90% accuracy in real-time cyber-attack detection. [Add the dataset and evaluation method, e.g., "on the [dataset name] test split, [N] samples."]
+- 90% accuracy in real-time cyber-attack detection.
 
 ## Tech Stack
 
